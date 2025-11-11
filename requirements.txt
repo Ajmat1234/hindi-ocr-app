@@ -1,6 +1,5 @@
 Flask==3.0.3
-paddlepaddle==2.6.1  # CPU version for free tier
-paddleocr==2.8.1
+paddleocr==3.0.1
 numpy==1.26.4
 Pillow==10.1.0
 gunicorn==22.0.0
