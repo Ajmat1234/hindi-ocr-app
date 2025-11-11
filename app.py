@@ -7,14 +7,8 @@ from tempfile import NamedTemporaryFile
 
 app = Flask(__name__)
 
-# Initialize OCR (3.0 params: lang='hi' same, use_textline_orientation=True for angle cls)
-# Models auto-download on first run (~100MB one-time, Hindi supported in multilingual)
-ocr = PaddleOCR(
-    use_angle_cls=True,  # Still works, but in 3.0 it's use_textline_orientation internally
-    lang='hi',  # Hindi/Devanagari
-    use_gpu=False,  # CPU for free tier
-    show_log=False  # Quiet mode (3.0 mein logging changed)
-)
+# Initialize OCR (stable 2.8.1: lang='hi' for Hindi, use_angle_cls for rotation)
+ocr = PaddleOCR(use_angle_cls=True, lang='hi', use_gpu=False, show_log=False)
 
 @app.route('/')
 def index():
@@ -34,25 +28,26 @@ def predict():
         image_bytes = file.read()
         image = Image.open(io.BytesIO(image_bytes))
         
-        # Temp file for OCR
+        # Temp file for OCR (PaddleOCR needs path)
         with NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
             image.save(temp_file.name)
             temp_path = temp_file.name
         
-        # Run OCR (3.0: use predict() instead of ocr())
-        result = ocr.predict(temp_path)
+        # Run OCR (2.8.1 API: ocr.ocr() returns list of [line, (text, conf)])
+        result = ocr.ocr(temp_path, cls=True)
         
-        # Extract text from new format (list of res objects, each with .res['rec_texts'] and .res['rec_scores'])
+        # Extract text and conf
         recognized_text = []
         confidences = []
-        for res_obj in result:
-            res = res_obj.res  # Dict with 'rec_texts', 'rec_scores'
-            texts = res.get('rec_texts', [])
-            scores = res.get('rec_scores', [])
-            recognized_text.extend(texts)
-            confidences.extend(scores)
+        if result and result[0]:  # result[0] is list of detections
+            for line in result[0]:
+                text = line[1][0]  # Recognized text
+                conf = line[1][1]  # Confidence
+                if text.strip():
+                    recognized_text.append(text)
+                    confidences.append(conf)
         
-        full_text = ' '.join([t for t in recognized_text if t.strip()])  # Clean empty
+        full_text = ' '.join(recognized_text)
         avg_conf = sum(confidences) / max(1, len(confidences)) if confidences else 0
         
         # Cleanup
