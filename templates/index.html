@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hindi Handwriting OCR with PaddleOCR</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        form { margin: 20px; }
+        input[type="file"] { margin: 10px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
+        #result { margin-top: 20px; font-size: 24px; color: green; white-space: pre-wrap; }
+        #error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Hindi Handwritten Text Recognition (PaddleOCR)</h1>
+    <p>Handwritten Hindi image upload karo, full text recognize hoga!</p>
+    
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="file" name="file" accept="image/*" required>
+        <br>
+        <button type="submit">Recognize Karo</button>
+    </form>
+    
+    <div id="result"></div>
+    <div id="error"></div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('file', document.getElementById('file').files[0]);
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('error').textContent = data.error;
+                    document.getElementById('result').textContent = '';
+                } else {
+                    document.getElementById('result').innerHTML = `<strong>Recognized Text:</strong><br>${data.recognized_text}<br><small>Confidence: ${data.confidence}</small>`;
+                    document.getElementById('error').textContent = '';
+                }
+            } catch (err) {
+                document.getElementById('error').textContent = 'Error: ' + err.message;
+            }
+        });
+    </script>
+</body>
+</html>
