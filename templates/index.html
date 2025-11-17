@@ -5,12 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hindi Handwriting OCR with PaddleOCR</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
-        form { margin: 20px; }
-        input[type="file"] { margin: 10px; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
-        #result { margin-top: 20px; font-size: 24px; color: green; white-space: pre-wrap; }
-        #error { color: red; }
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            margin: 50px; 
+            background-color: #f4f4f4;
+        }
+        h1 { color: #333; }
+        p { color: #666; }
+        form { 
+            margin: 20px; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input[type="file"] { 
+            margin: 10px; 
+            padding: 5px; 
+        }
+        button { 
+            padding: 10px 20px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button:disabled { 
+            background: #ccc; 
+            cursor: not-allowed; 
+        }
+        #result { 
+            margin-top: 20px; 
+            font-size: 24px; 
+            color: green; 
+            white-space: pre-wrap; 
+            background: white; 
+            padding: 15px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-height: 50px;
+        }
+        #error { 
+            color: red; 
+            background: #ffe6e6; 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 10px 0;
+        }
+        /* Loading Spinner */
+        .loading {
+            display: none;
+            margin: 10px auto;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -19,16 +81,31 @@
     
     <form id="uploadForm" enctype="multipart/form-data">
         <input type="file" id="file" name="file" accept="image/*" required>
-        <br>
-        <button type="submit">Recognize Karo</button>
+        <br><br>
+        <button type="submit" id="recognizeBtn">Recognize Karo</button>
+        <div class="loading" id="loadingSpinner"></div>
     </form>
     
     <div id="result"></div>
     <div id="error"></div>
 
     <script>
-        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        const form = document.getElementById('uploadForm');
+        const btn = document.getElementById('recognizeBtn');
+        const spinner = document.getElementById('loadingSpinner');
+        const resultDiv = document.getElementById('result');
+        const errorDiv = document.getElementById('error');
+
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Show loading
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+            spinner.classList.add('active');
+            resultDiv.innerHTML = '';
+            errorDiv.textContent = '';
+
             const formData = new FormData();
             formData.append('file', document.getElementById('file').files[0]);
             
@@ -37,17 +114,47 @@
                     method: 'POST',
                     body: formData
                 });
-                const data = await response.json();
+                
+                // Log response status for debugging
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                // Check if response is ok and has content
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const text = await response.text();
+                console.log('Raw response text:', text);
+                
+                if (!text.trim()) {
+                    throw new Error('Empty response from server');
+                }
+                
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseErr) {
+                    console.error('JSON parse error:', parseErr);
+                    throw new Error(`Invalid JSON: ${text.substring(0, 200)}...`);
+                }
                 
                 if (data.error) {
-                    document.getElementById('error').textContent = data.error;
-                    document.getElementById('result').textContent = '';
+                    errorDiv.textContent = data.error;
+                    resultDiv.innerHTML = '';
                 } else {
-                    document.getElementById('result').innerHTML = `<strong>Recognized Text:</strong><br>${data.recognized_text}<br><small>Confidence: ${data.confidence}</small>`;
-                    document.getElementById('error').textContent = '';
+                    resultDiv.innerHTML = `<strong>Recognized Text:</strong><br>${data.recognized_text}<br><small>Confidence: ${data.confidence} | Lines: ${data.num_lines || 0}</small>`;
+                    errorDiv.textContent = '';
                 }
             } catch (err) {
-                document.getElementById('error').textContent = 'Error: ' + err.message;
+                console.error('Full error:', err);
+                errorDiv.textContent = `Error: ${err.message}`;
+                resultDiv.innerHTML = '';
+            } finally {
+                // Hide loading
+                btn.disabled = false;
+                btn.textContent = 'Recognize Karo';
+                spinner.classList.remove('active');
             }
         });
     </script>
