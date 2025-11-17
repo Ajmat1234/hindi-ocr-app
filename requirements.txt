@@ -1,7 +1,5 @@
 Flask==3.0.3
-easyocr==1.7.1  # Hindi handwriting के लिए बेस्ट
-torch==2.4.1+cpu  # CPU-only, मेमोरी सेविंग
-torchvision==0.19.1+cpu
+easyocr==1.7.1
 Pillow==10.1.0
 gunicorn==22.0.0
 setuptools==70.3.0
